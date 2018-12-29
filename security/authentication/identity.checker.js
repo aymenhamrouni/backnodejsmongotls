@@ -1,4 +1,4 @@
-const IdentityModel = require("../../models/identity.model");
+const IdentityModel = require("../../models/identity");
 const uuidv4 = require("uuid/v4");
 const validityTime = require("../../env.config.js").jwtValidityTimeInSeconds;
 
@@ -34,8 +34,6 @@ const bcrypt = require("bcrypt");
 exports.isPasswordAndUserMatch = (req, res, next) => {
   IdentityModel.findByEmail(req.body.email)
     .then(user => {
-      console.log(user);
-
       let passwordFields = user[0].password.split("@");
       let salt = passwordFields[0];
       let hash = bcrypt.hash(req.body.password, salt, null);

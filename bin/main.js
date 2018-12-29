@@ -1,49 +1,46 @@
 const config = require("../env.config");
 const mongoose = require("mongoose");
-mongoose.connect(
-  "mongodb://localhost:27017/smarthome",
-  { useNewUrlParser: true }
-);
-
-const express = require("express");
 const bodyParser = require("body-parser");
 var app = require("../app");
 const SecurityRouter = require("../routes/auth");
-const IdentityRouter = require("../routes/userss");
-SecurityRouter.routesConfig(app);
-IdentityRouter.routesConfig(app);
-const HomeModel = require("../models/Home");
+const IdentityRouter = require("../routes/users");
 var mqtt = require("mqtt");
 var debug = require("debug")("node-express-generator:server");
-var http = require("http");
-
-config.initRefreshSecret();
-
-//voir Helmet.md
+var http = require("http"); // http
 const tls = require("spdy"); //http2 + https (tls)
 const fs = require("fs");
 let helmet = require("helmet");
+
+config.initRefreshSecret();
+
+mongoose.connect(
+  "mongodb://"+config.mongoDBhost+":"+config.mongoDBport+"/"+config.mongoDbCollection,
+  { useNewUrlParser: true }
+);
 
 const options = {
   key: fs.readFileSync("./tls/test-key.pem"),
   cert: fs.readFileSync("./tls/test-cert.pem")
 };
+SecurityRouter.routesConfig(app);
+IdentityRouter.routesConfig(app);
+
 
 app.use(helmet());
 
 app.use(bodyParser.json());
 
-var port = normalizePort(process.env.PORT || "3000");
+var port = normalizePort(process.env.PORT || config.httpport);
 app.set("port", port);
 
-var https = tls.createServer(options, app).listen(config.port, error => {
+var https = tls.createServer(options, app).listen(config.httpsport, error => {
   if (error) {
     console.error(error);
     return process.exit(1);
   } else {
     console.log(
       "Express Sever Configured with HTTP2 and TLSv1.2 and listening on port: " +
-        config.port +
+        config.httpsport +
         "."
     );
   }
@@ -53,7 +50,18 @@ var https = tls.createServer(options, app).listen(config.port, error => {
  * Create HTTP server.
  */
 
-var server = http.createServer(app);
+var server = http.createServer(app,(error)=>{
+  if (error) {
+    console.error(error);
+    return process.exit(1);
+  } else {
+    console.log(
+      "Express Sever Configured with HTTP and listening on port: " +
+        config.httpport +
+        "."
+    );
+  }
+});
 
 //////////////////////////////////////////////////////////////////
 var optionsmqtt = {
@@ -70,7 +78,6 @@ var optionsmqtt = {
   encoding: "utf8"
 };
 
-//var io = require("socket.io").listen(server);
 io = require("socket.io")(https, {
   origins: "*:*"
 });
@@ -82,53 +89,30 @@ var client = mqtt.connect(
 /**
  * Listen on provided port, on all network interfaces.
  */
-var i = 0;
-io.on("connect", socket => {
-  socket.on("home", msg => {
-    console.log(msg);
 
-    client.publish(JSON.parse(msg).change.toString(), {
-      Sensor: JSON.parse(msg).WindowsSensors.toString()
-    });
-  });
-});
 client.on("message", function(topic, payload) {
-  // console.log('message received');
-  //console.log(payload);
-  //console.log(String(payload));
+ 
   io.sockets.emit(String(topic), {
     topic: String(topic),
     payload: String(payload)
   });
-  HomeModel.createIdentity(JSON.parse(String(payload)))
-    .then(result => {
-      console.log(result);
-    })
-    .catch(err => {
-      HomeModel.findByHomeId(JSON.parse(String(payload)).homeId)
-        .then(re => {
-          HomeModel.putIdentity(re._id, JSON.parse(payload))
-            .then(res => {})
-            .catch(err => {});
-        })
-        .catch(err => {});
-    });
+  
 });
 
-/* io.on("connect", () => {
-  console.log("Client connected");
-}); */
+ io.on("connect", () => {
+  console.log("A User  connected");
+}); 
 
 client.on("connect", function() {
-  // When connected
+
   console.log("connected to the broker");
-  // subscribe to a topic
+
   client.subscribe(["home_1", "home_2"], function() {
-    // when a message arrives, do something with it
+  
   });
 });
 
-///////////////////////////////////////////////////////////////////////////////////////
+
 server.listen(port,(err) => {
   if (err)
   {
@@ -137,7 +121,7 @@ server.listen(port,(err) => {
   }
   else 
   {
-    console.log("listening on a HTTP server on port", "3000");
+    console.log("listening on a HTTP server on port", config.httpport);
 
   }
 });

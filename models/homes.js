@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const config=require('../env.config')
 const Schema = mongoose.Schema;
 var uniqueValidator = require('mongoose-unique-validator');
 
@@ -11,10 +12,10 @@ const homesSchema = new Schema({
     }
 });
 
-//var Home = mongoose.model('Home', HomeSchema);
+
 homesSchema.plugin(uniqueValidator);
 
-const Identity = mongoose.model('Homeslist', homesSchema);
+const Identity = mongoose.model(config.mongoDbHomesIndex, homesSchema);
 
 
 exports.putIdentity = (id,identityData) => {
@@ -27,7 +28,6 @@ exports.putIdentity = (id,identityData) => {
 };
 
 exports.findByHomeId = (homeId) => {
-    console.log(Identity.findOne({homeId: homeId}))
     return Identity.findOne({homeId: homeId});
 };
 

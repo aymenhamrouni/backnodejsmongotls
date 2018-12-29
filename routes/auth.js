@@ -12,7 +12,7 @@ exports.routesConfig = function (app) {
     app.post('/auth', [
         IdentityChecker.hasAuthValidFields,
         IdentityChecker.isPasswordAndUserMatch
-        //Authenticator.login
+  
     ]);
 
     app.post('/auth/refresh', [

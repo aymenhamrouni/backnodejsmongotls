@@ -1,89 +1,62 @@
-var express = require("express");
-var router = express.Router();
-const bodyParser = require("body-parser");
-var User = require("../models/user");
-var router = express.Router();
-router.use(bodyParser.json());
+const IdentityProvider = require("../identity/controllers/identity.provider");
+const AuthorizationValidation = require("../security/authorization/authorization.validation");
+const AuthorizationPermission = require("../security/authorization/authorization.permission");
+const config = require("../env.config");
 
-const cors = require("./cors");
-var authenticate = require("../authenticate");
-var passport = require("passport");
+const Master = config.permissionLevels.Master;
+const Member = config.permissionLevels.Member;
+const Surfer = config.permissionLevels.Surfer;
 
+exports.routesConfig = function(app) {
+  app.post("/users", [IdentityProvider.insert]);
+  app.post("/users/check", [AuthorizationValidation.checkValidJWT]);
+  app.post("/users/add", [
+    AuthorizationValidation.validJWTNeeded,
+    IdentityProvider.insertNewUser
+  ]);
+  app.get("/users", [
+    AuthorizationValidation.validJWTNeeded,
+    AuthorizationPermission.minimumPermissionLevelRequired(Member),
+    IdentityProvider.list
+  ]);
+  app.get("/users/:userId", [
+    AuthorizationValidation.validJWTNeeded,
+    AuthorizationPermission.minimumPermissionLevelRequired(Surfer),
+    AuthorizationPermission.onlySameUserOrAdminCanDoThisAction,
+    IdentityProvider.getById
+  ]);
 
-router.options('*', cors.corsWithOptions, (req, res) => {  res.sendStatus(200); } )
+  /**
+   * In a PUT request, the enclosed entity is considered to be
+   * a modified version of the resource stored on the origin server,
+   * and the client is requesting that the stored version be replaced.
+   * So all the attributes are to be updated!
+   * Thus this is a privileged action done only by administrator
+   */
+  app.put("/users/:userId", [
+    AuthorizationValidation.validJWTNeeded,
+    AuthorizationPermission.minimumPermissionLevelRequired(Master),
+    AuthorizationPermission.sameUserCantDoThisAction,
+    IdentityProvider.putById
+  ]);
 
-/*router.route('/')
-   .all((req, res, next) => {
-    next();
-    // console.log(req);
-  }) */
-  router.get('/',cors.corsWithOptions,authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => { //admin can do this
-    User.find({})
-      .then((users) => {
-        res.statusCode = 200;
-        res.setHeader('Content-Type', 'application/json');
-        res.json(users);
-      }, (err) => next(err))
-      .catch((err) => next(err));
-  })
-
-
-router.post("/signup", cors.corsWithOptions, function(req, res, next) {
-  console.log(req.body);
-  User.register(
-    new User({ username: req.body.username }),
-    req.body.password,
-    (err, user) => {
-      if (err) {
-        res.statusCode = 200;
-        res.setHeader('Content-Type', 'application/json');
-        res.json({ err: err });
-      } else {
-        if (req.body.firstname) {
-          user.firstname = req.body.firstname;
-        }
-        if (req.body.lastname) {
-          user.lastname = req.body.lastname;
-        }
-        user.save((err, user) => {
-          if (err) {
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'application/json');
-            res.json({ err: err });
-            return;
-          }
-          passport.authenticate("local")(req, res, () => {
-            res.statusCode = 200;
-            res.setHeader("Content-Type", "application/json");
-            res.json({ success: true, Status: "Registration Successful" });
-          });
-        });
-      }
-    }
-  );
-});
-
-router.post("/login", cors.corsWithOptions, passport.authenticate("local"), (req, res) => {
-  var token = authenticate.getToken({ _id: req.user._id });
-  res.statusCode = 200;
-  res.setHeader("Content-Type", "application/json");
-  res.json({
-    success: true,
-    token: token,
-    Status: "You are Successfuly logged in!"
-  });
-});
-
-router.get("/logout", cors.corsWithOptions, (req, res, next) => {
-  if (req.session) {
-    req.session.destroy(); //destroy the session and information is removed from the server side
-    res.clearCookie("session-id"); // destroy the cookie from the client side
-    res.redirect("/");
-  } else {
-    var err = new Error("you are not logged in!");
-    err.statusCode = 403;
-    next(err);
-  }
-});
-
-module.exports = router;
+  /**
+   * PATCH specifies that the enclosed entity contains a set of instructions describing
+   * how a resource currently residing on the origin server should be modified to produce a new version.
+   * So, some attributes could or should remain unchanged.
+   * In our case, a regular user cannot change permissionLevel!
+   * Thus only same user or admin can patch without changing identity permission level.
+   */
+  app.patch("/users/:userId", [
+    AuthorizationValidation.validJWTNeeded,
+    AuthorizationPermission.minimumPermissionLevelRequired(Surfer),
+    AuthorizationPermission.onlySameUserOrAdminCanDoThisAction,
+    IdentityProvider.patchById
+  ]);
+  app.delete("/users/:userId", [
+    AuthorizationValidation.validJWTNeeded,
+    AuthorizationPermission.minimumPermissionLevelRequired(Master),
+    AuthorizationPermission.sameUserCantDoThisAction,
+    IdentityProvider.removeById
+  ]);
+};

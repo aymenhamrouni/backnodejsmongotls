@@ -1,5 +1,11 @@
 module.exports = {
-  port: 8443,
+  httpsport: 8443,
+  httpport:3000,
+  mongoDBhost : "localhost",
+  mongoDBport : "27017" ,
+  mongoDbCollection : "smarthome",
+  mongoDbUsersIndex : "Users",
+  mongoDbHomesIndex : "Homeslist",
   appEndpoint: "https://localhost:8443",
   apiEndpoint: "https://localhost:8443",
   refresh_secret: "Oh!42My@Go6*d9753!",

@@ -1,6 +1,6 @@
-const IdentityModel = require("../../models/identity.model");
+const IdentityModel = require("../../models/identity");
 const HomeModel = require("../../models/homes");
-const crypto = require("crypto");
+const config=require("../../env.config")
 const bcrypt = require("bcrypt");
 exports.insert = (req, res) => {
   let salt = bcrypt.genSaltSync(16).toString();
@@ -18,7 +18,7 @@ exports.insert = (req, res) => {
         } else { 
           hash.then(rsult => {
             req.body.password = salt + "@" + rsult.toString("base64");
-            req.body.permissionLevel = 1073741824;
+            req.body.permissionLevel = config.permissionLevels.Master;
             IdentityModel.createIdentity(req.body)
               .then(result => {
                 HomeModel.removeById(

@@ -23,24 +23,11 @@ var client = mqtt.connect(
 );
 const express = require("express");
 const bodyparser = require("body-parser");
-const mongoose = require("mongoose");
 const AuthorizationValidation = require("../security/authorization/authorization.validation");
-const AuthorizationPermission = require("../security/authorization/authorization.permission");
-const Dishes = require("../models/values");
-//const cors = require('./cors');
 const valuesRouter = express.Router();
 valuesRouter.use(bodyparser.json());
 
-/* valuesRouter.route('/')
-.post(AuthorizationValidation.validJWTNeeded,(req, res, next) => { 
-    
-   console.log(req.body)
-    var a = JSON.parse(String(JSON.stringify(req.body)));
-    client.publish("home_3", JSON.stringify(a));
-    res.sendStatus(201);
-    res.end("lol");
 
-}) */
 valuesRouter
   .route("/")
   .post(AuthorizationValidation.validJWTNeeded, (req, res, next) => {
